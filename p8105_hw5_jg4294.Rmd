@@ -5,23 +5,117 @@ date: '`r format(Sys.time(), "%Y-%m-%d")`'
 output: github_document
 ---
 
-```{r setup, include=FALSE, warning=FALSE}
-
+```{r setup, include = FALSE, warning=FALSE}
+library(tidyverse)
 knitr::opts_chunk$set(
-  fig.height = 6,
-  fig.width = .6,
-  out.width = "90%",
-  message = F,
-  #echo = F,
-  warning = F
+  fig.width = 6,
+  fig.asp = .6,
+  out.width = "90%"
 )
 theme_set(theme_minimal() + theme(legend.position = "bottom"))
-
 options(
   ggplot2.continuous.colour = "viridis",
-  ggplot2.continuous.fill = "viridis",
-  digits = 3
+  ggplot2.continuous.fill = "viridis"
 )
-scale_colour_discrete = scale_colour_viridis_d
+scale_colour_discrete = scale_color_viridis_d
 scale_fill_discrete = scale_fill_viridis_d
 ```
+
+## Problem 1
+
+**Read in the homicide dataset.**
+```{r import data}
+homicide_df = 
+  read_csv("data1/homicide-data.csv")  
+```
+
+The original homicide data contains `r nrow(homicide_df)` observations and `r ncol(homicide_df)` variables. The variables are including information about the location (latitude and longitude) of the homicide and the victim (first and last name, age, sex, race).  
+
+**Create variable `city_state`**
+```{r city_state}
+homicide_df =
+  homicide_df %>% 
+  mutate(
+    city_state = str_c(city, state, sep = "_"),
+    resolved = case_when(
+      disposition == "Closed without arrest" ~ "unsolved",
+      disposition == "Open/No arrest"        ~ "unsolved",
+      disposition == "Closed by arrest"      ~ "solved",
+    )
+  ) %>% 
+  select(city_state, resolved) %>% 
+  filter(city_state != "Tulsa_AL")
+```
+
+**Summarize within cities to obtain the total number of homicides and the number of unsolved homicides**
+
+```{r}
+aggregate_df = 
+  homicide_df %>% 
+  group_by(city_state) %>% 
+  summarize(
+    hom_total = n(),
+    hom_unsolved = sum(resolved == "unsolved")
+  )
+```
+
+**For the city of Baltimore, MD, use the prop.test function to estimate the proportion of homicides that are unsolved; save the output of prop.test as an R object, apply the broom::tidy to this object and pull the estimated proportion and confidence intervals from the resulting tidy dataframe.**
+
+```{r}
+prop.test(
+  aggregate_df %>% filter(city_state == "Baltimore_MD") %>% pull(hom_unsolved), 
+  aggregate_df %>% filter(city_state == "Baltimore_MD") %>% pull(hom_total)) %>% 
+  broom::tidy()
+```
+
+**Now run prop.test for each of the cities in your dataset, and extract both the proportion of unsolved homicides and the confidence interval for each. Do this within a “tidy” pipeline, making use of purrr::map, purrr::map2, list columns and unnest as necessary to create a tidy dataframe with estimated proportions and CIs for each city.**
+
+```{r}
+results_df = 
+  aggregate_df %>% 
+  mutate(
+    prop_tests = map2(.x = hom_unsolved, .y = hom_total, ~prop.test(x = .x, n = .y)),
+    tidy_tests = map(.x = prop_tests, ~broom::tidy(.x))
+  ) %>% 
+  select(-prop_tests) %>% 
+  unnest(tidy_tests) %>% 
+  select(city_state, estimate, conf.low, conf.high)
+```
+
+**Create a plot that shows the estimates and CIs for each city – check out geom_errorbar for a way to add error bars based on the upper and lower limits. Organize cities according to the proportion of unsolved homicides**
+
+```{r}
+results_df %>% 
+  mutate(city_state = fct_reorder(city_state, estimate)) %>% 
+  ggplot(aes(x = city_state, y = estimate)) +
+  geom_point() + 
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high)) + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+```
+
+**Alternative way with function**
+```{r, error = TRUE, eval=FALSE}
+city_prop_test = function(df) {
+  
+  n_unsovled ...
+  n_total ... 
+  
+  prop.test(.....)
+  
+}
+homicide_df = 
+  read_csv("data/homicide-data.csv") %>% 
+  mutate(
+    city_state = str_c(city, state, sep = "_"),
+    resolved = case_when(
+      disposition == "Closed without arrest" ~ "unsolved",
+      disposition == "Open/No arrest"        ~ "unsolved",
+      disposition == "Closed by arrest"      ~ "solved",
+    )
+  ) %>% 
+  select(city_state, resolved) %>% 
+  filter(city_state != "Tulsa_AL") %>% 
+  nest(data = resolved)
+```
+
+
