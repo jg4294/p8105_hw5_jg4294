@@ -118,4 +118,50 @@ homicide_df =
   nest(data = resolved)
 ```
 
+## Problem 2
 
+A longitudinal study that included a control arm and an experimental arm. Data for each participant is included in a separate file, and file names include the subject ID and arm.
+
+**Read in the data and tidy the dataframe containing data from all participants, including the subject ID, arm, and observations over time** 
+
+```{r 2import}
+files = list.files("./lda_data", pattern = ".csv", all.files = FALSE, 
+full.names = FALSE)
+
+longit_study = data.frame(participants = files) %>% 
+  janitor::clean_names() %>%
+  mutate(
+    file_contents = 
+      map(participants, ~read_csv(file.path("./lda_data", .)))
+    ) %>% 
+  separate(participants, into = c("control", "subject_id")) %>% 
+  unnest(file_contents) %>% 
+  mutate(
+    control = recode(control, `con` = "control", `exp` = "experiment")
+  ) 
+
+# Tidy
+longit_study_tidy = longit_study %>% 
+  pivot_longer(week_1:week_8,
+               names_to = "week",
+               names_prefix = "week_",
+               values_to = "observation") 
+```
+
+**Make a spaghetti plot showing observations on each subject over time, and comment on differences between groups.**
+
+```{r}
+longit_study_tidy %>%
+  ggplot(aes(x = week, y = observation, group = subject_id, color = subject_id)) +
+    geom_path() + 
+    facet_grid(~control) +
+    labs(
+      title = "Weekly Observations for Control and Experiment Groups",
+      x = "Week",
+      y = "Observation"
+  )
+```
+
+**Comments: there is a clear increase pattern in the experiment group over the time for 8 weeks. The patterns of the control group are hard to tell, and the overall trends tend to be flatter comparing to the experiment group.**
+
+## Problem 3
