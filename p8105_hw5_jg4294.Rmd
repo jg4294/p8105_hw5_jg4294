@@ -191,3 +191,21 @@ results
 
 ```
 
+
+**Use list columns and map for $\mu= 1,2,3,4,5$**
+
+```{r}
+sim_results = 
+  tibble(mu = c(1, 2, 3, 4, 5)) %>% 
+  mutate(
+    output_lists = map(.x = mu, ~rerun(5000, sim(mu = .x))),
+    estimate_dfs = map(output_lists, bind_rows)) %>% 
+  select(-output_lists) %>% 
+  unnest(estimate_dfs)
+
+sim_results
+```
+
+
+
+
