@@ -210,7 +210,7 @@ head(sim_results)
 
 ```
 
-*Plot the proportion of times the null was rejected (the power of the test) on the y axis and the true value of μ on the x axis.* 
+**Plot the proportion of times the null was rejected (the power of the test) on the y axis and the true value of μ on the x axis.** 
 ```{r proportion_of_rej}
 
 sim_results %>% 
