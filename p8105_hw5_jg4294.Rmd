@@ -7,6 +7,10 @@ output: github_document
 
 ```{r setup, include = FALSE, warning=FALSE}
 library(tidyverse)
+library(patchwork)
+library(purrr)
+library(ggridges)
+
 knitr::opts_chunk$set(
   fig.width = 6,
   fig.asp = .6,
@@ -216,8 +220,11 @@ sim_results %>%
     rej = n()
   ) %>% 
   mutate(proportion_of_rej = rej / 5000) %>% 
-  ggplot(aes(x = mu, y = proportion_of_rej)) +
-  geom_path() +
+  ggplot(aes(x = mu, y = proportion_of_rej, color = mu)) +
+  geom_point() + 
+  geom_line() +
+  ylim(0,1) +
+  geom_text(aes(label = proportion_of_rej, hjust = 0, vjust = 0.5)) +
   labs(
     title = "Power of the test",
     x = "True mu",
@@ -229,12 +236,45 @@ sim_results %>%
 From the proportion of reject plot we can see that the larger the effect size, the larger the power. Hence, as the effect size increases, we have greater probability to reject the false null hypothesis. When the true mu equals to 5 or 6, the power of the test reaches to 1.
 
 
+**Make a plot showing the average estimate of μ_hat on the y axis and the true value of μ on the x axis. Make a second plot (or overlay on the first) the average estimate of μ^ only in samples for which the null was rejected on the y axis and the true value of μ on the x axis.**
 
-```{r}
+```{r plot1}
+plot1 =
+  sim_results %>% 
+  group_by(mu) %>% 
+  summarize(
+    average_mu_hat = mean(mu_hat)
+  ) %>% 
+  ggplot(aes(x = mu, y = average_mu_hat, color = mu)) +
+  geom_point() + geom_line() + 
+  labs(
+    title = "Average estimate of mu_hat vs. True mu ",
+    x = "True mu",
+    y = "Average estimate mu hat"
+  )
+plot1
+
+```
+
+```{r plot2}
+plot2 = 
+  sim_results %>% 
+  group_by(mu) %>% 
+  filter(p_value < 0.05) %>% 
+  summarize(
+    average_rej_mu = mean(mu_hat)
+  ) %>% 
+  ggplot(aes(x = mu, y = average_rej_mu, color = mu)) +
+  geom_point() + geom_line() +
+  labs(
+    title = "Rejected: Average estimate of mu_hat vs. True mu",
+    x = "True mu",
+    y = "Average esitmate mu (rejected)"
+  )
+plot2
 
 ```
 
 
-
-
+Based on plot1, we find that the average estimated mu_hats from our samples are the same as the true mu (from 0 to 6). And based on plot2, we find that the sample average of mu_hat across tests for which the null is rejected approximately equal to the true value of mu when mu is equal to 4, 5, and 6. However, for mu = 0,1,2,3, the sample average of mu for which the null is rejected deviates significantly from the true value of mu. This is reasonable because as the effect size (in other words the true mu) increases, the power of the test increases as well. We would expect to see a increase in the probability that a false null hypothesis is rejected when  the true mu increases .
 
